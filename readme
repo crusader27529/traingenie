@@ -1,0 +1,121 @@
+Design Notes
+
+Model RR train detection is the Holy Grail for the hobbyist, because with effective detection, signaling can be accomplished.
+
+Detection has not progressed much in the last 20 years, and simplistic photocell detection is not the answer. Other methods include current monitoring, but that requires modifying the rolling stock to allow current flow across the rails. Besides the cost of the metal wheels to the cars, unless you modify all the cars, the results are lacking, specifically in the case of a derailment at any level. If you do modify all the cars, the total current that is needed quickly exceeds what many controllers can supply.
+
+What's needed is a method the detect ALL rolling stock without modification, and be close to 100% reliable in that detection....AND require no changes to the layout to implement (just additions, obviously).....AND is affordable.
+
+I present to you the Train Genie (TG for short).
+
+It uses IR for quadrature detection....if you really want to understand how it works, look it up. Basically, if 2 sensors are located close to each other, and if the THINGS that need to be detected are large enough to cover both sensors at the same time, when that THING crosses the sensors, a direction can be determined. That allows us to determine if the THING is entering or exiting a block! All that's needed is something to count the transitions, and either add to or subtract from the number of THINGS in a block to tell if the block is clear. If the number of THINGS in a block is not zero, the block is occupied. It's as simple as that....negative values are not allowed. Obviously, THINGS are analogous to parts of the train, specifically the wheels/trucks. A 16-bit number is used to keep the count in each block, so 32,767 devices could be in a block before the system count wouldn't be correct.
+
+Initially, I wanted to use two light pipes connected to an IR source in the side of a short dedicated piece of track as detectors, and count the transitions of wheel flanges that went by, but the issues of the light intensity and fragility of the fiber optics didn't work. Also, custom electronics were too expensive. The current design idea is to use small enclosures to mount the sensors and IR emitter, and possibly have Red/Green signaling as well. Driving the sensors/detector pair would be an Arduino. A shield for the detector will have no/minimal components on it, and will just be a place to connect to the track-side hardware and the counters. There will be appropriate locations for extra indicators if desired, but they're not required. The track-side hardware will be just the IR emitter, 2 detectors and the basic Red/Green signal components for both the East and West directions.
+
+The counter shield will also have almost no components on it, plus an optional occupancy indicator, and be a place where it connects to the detector modules and a turnout, if the block has one. 
+
+The counter needs to be able to respond correctly to inputs from both the East and West detectors, simultaneously. All such communication will include an ACK for reliable communications using Cat5 cabling(the twisted pairs are not required, and telephone cable can be used instead) but not the RJ-45 connectors. The RJ-45 connectors just take up too much board space.
+
+Quadrature detection requires 2 sensors closely spaced so whatever is triggering the sensors must be large enough to cover both sensors at the same time. The detection determines which sensors are uncovered in which sequence to assign a direction to the transition across the sensors. That allows us to count the number of THINGS going into and/or going out of a block.
+
+The most reliable thing to detect would be the rolling stock itself, but the differences in height would cause problems. We need something that's standard on each car and locomotive.....that probably would be the wheels or trucks. Smaller things that may hang that low on a piece of rolling stock, like a glad-hand, wouldn't be large enough to cover both sensors, so it will be ignored. Larger items, like a locomotive with no spacing between the trucks would be counted as 1 transition.
+
+The detection target will be wheel/truck transitions, so the detectors should be mounted at the height of the center of the wheels, to provide reasonable accuracy.
+
+The counter module connects to a detector from the West and one from the East directions. It also connects to a North direction is a turnout is involved.
+
+Logically, the SG has inputs from E & W....there are 2 types of modules involved in the process. First there is a detector module which is placed at the boundary on a block. The detector feeds  counter modules both E & W.
+
+The block detector transitions informs BOTH the E & W blocks of the detection. An E movement will CUP the E counter, AND CDN the W counter.
+
+Operationally, trains will never be entering or leaving the same block concurrently, but that is what happens if a very long train or a short block would have a train straddling a block, and both entering and leaving the block at the same time. This is allowed for in the system.
+
+The 'protocol' to communicate with a remote Train-Genie needs to be reliable, meaning that a count event requires an acknowledgment for verification.
+
+Thinking about simplistic signaling, in reality all that needs to be controlled are the signals for entry into the block from both directions, and nothing more. These correspond directly to the occupancy status of the block(s) except when a turnout is involved. This occupancy status will be available to connect any device that can detect standard digital logic levels from the counter module. Any complex signaling/aspects will have to be by external means. This system is for block occupancy/detection and simple signaling ONLY.
+
+The easiest reliable implementation for communication between modules simply use 3 wires....the count event will cause the connected counter to respond with the ACK. Once received, the count event line is made inactive, and then the ACK is also made inactive. There are separate lines for a CUP or CDN event, and they share a common ACK line.
+
+An East transition will perform an ECUP and a WCDN.
+
+A West transition will perform an ECDN and a WCUP.
+
+The IR emitter modules requires 2 wires, 1 for the 38KHZ signal and 1 for ground.
+
+The sensor modiles require 4 wires, 1 each for power and ground, and 1 for each detector.
+
+The signal modules require 3 wires, 1 each for power and ground, and 1 for direction.
+
+So, there will be an IR PCB, a detector PCB and the shield for the Arduino. The signals will also be/have a PCB associated with them.
+
+The schematics and PCB layouts will be supplied, and use KICAD format. KICAD is FREE.
+
+The emitter LED needs to be covered to reduce the output levels, so covering it with black hobby (Tempera??) paint works fine. Just scrape some off the lower end of the LED to allow the IR to exit.
+
+The detectors are TSSP4038 and can be substituted with other detectors as long as they can accept CONTINUOUS 38KHZ signals, as opposed to pulsed 38KHZ.
+
+The only components that need to be placed on top of the layout are the IR emitter(s) and the TSSP4038 38KHZ tuned detectors. The rest on the components should be mounted below the layout. The system was tested using 40' of CAT5 network cable between the counter and detector modules, and should work with longer cabling, but was not tested. The CAT5 cable was used JUST BECAUSE IT WAS AVAILABLE. Twisted pair cabling is not required, and single conductors are adequate. Having said that, solid wire (like used for the CAT5 cabling) is easily damaged at the ends from bending fatigue. Stranded wire is reccomended for reliablility, but not required.
+
+How It All Goes Together
+
+The system consists of 2 major modules, with 3 supporting modules. The major modules are the detector module and the counter/occupancy module.
+
+Let's start with the detector module.....the detector connects to and supplies the drive for the IR module, which actually generates the IR signal. There is a Sensor module that senses the IR signal, and connects to the detector module. There are optional signal modules that consist of drivers for red/green LEDs for both EAST & WEST directions. These signal modules would normally be placed at or near the block boundaries for obvious reasons.
+
+The detector module communicates to the counter modules, both in the EAST or WEST directions whenever an East or West transition is detected. The signals are CUP (count up) and CDN (count down) and ACK (for acknowledge that the counter has received the count). The signals are prefixed by the first letter of the direction, so there's a WCUP for west and ECUP for east. The other signals are WCDN, WACK, ECDN and EACK. This provides for positive communications between the 2 major modules.
+
+The signal modules just have an input to define the state of the signals, and will show only red or green. They are controlled from the counter module. The counter only controls the signals facing the block entrance.....the signals facing the exit of the blocks are the entry facing signals for the next or previous block, so they're controlled by the next or previous counter module(s).
+
+The counter module keeps track of the counts in and out of the block  from the east and west direction, but also have inputs from a non-east and non-west input called NORTH. This is used when the block contains a turnout. A block may contain only one turnout. Using turnouts requires an input from the turnout so the counter can determine the direction of the turnout. This state is ONLY used to control signals if the block is unoccupied. If the block is occupied, the state of the approaching signals will be RED without regard to turnout state.
+
+The counter connects to the detectors at both ends of the block with the CUP, CDN and ACK lines. There is a configuration where a protected block is at the end of a line, and that is a valid configuration. ANY/ALL detectors must be connected to counter modules from both the EAST and WEST direction. Besides, having a detector module that doesn't connect to a counter for a block makes no sense. A block at the end of a line is just that, it's the end....the only entry is from the boundary at the entrance....there is no exit at the other end.
+
+The counter also connects to the EW facing/entry signals and the N facing signals. These signal connections are optional if you're using the occupancy output from the counter to control signals externally. The count signals count up and down depending on the direction of whatever is entering or leaving the block, and if the count is not zero, the block is occupied.
+
+Operation of the IR and sensor modules requires aligning them. The system is designed to be installed across one track, and the added LEDs allow easy setup by observing the LEDs. The other LEDs show the status of the communications between detector and counter modules, which is most important for correct operation of the entire system.
+
+Placement of the IR and sensor modules is important both in vertical and horizontal dimensions, but is simple to perform. These modules should be set so as to detect the wheels or trucks of any cars passing. The height of the rails above the base of the track will vary greatly depending on the layout, and this must be taken into account. IR is different than visible light in the many materials are transparent to IR. Many plastics, specifically styrene, have properties that allow IR to pass through. This will allow placement of the IR and sensor modules inside structures in some cases.
+
+The system requires regulated 5 volts (an old PC power supply works will for this) . The on-board voltage regulators are designed to supply the Arduino itself plus some small amount of ancillary circuitry, but definitely not much more. Plus, the modules used in this system are interconnected more than most Arduino designs(on a system with only 10 blocks, there would be 10 detector modules, connected to 10 counter modules, connected to 10 IR modules connected, to 10 sensor modules, connected to 10 signal modules). This sounds like a lot, but the connections are just chained for communicating the train motion/direction from detectors to the counters. To prevent issues caused by interconnecting power to the modules incorrectly and grounding loop issues, it is advised to supply 5 volts regulated power to all the modules from an external power supply with a common ground. If multiple detectors are close to each other, the best way to prevent crosstalk issues is to place the IR modules facing in opposite directions.
+
+The system requires few components beyond the detector chips and IR source components, and the PCB that connects to the Arduino modules mostly only have convenient places to connect wires. Source code is free, but be aware that the state machine logic is tricky, and may no work if you change much.
+
+There is some confusion about how the system interconnects between the detectors and the counters. The East/West direction is a relative thing, and if you think about it, it makes sense.
+
+A detector connects with counters located to the East and West of it. The names of the outputs from the detector are prefixed with either an E or a W, obviously meaning East or West. But, the counter also communicates with the same names for the signals, but the physical direction is relative to itself.
+
+Just visualize the connections like multiple bar magnets lined up in sequence. The N end connects to the S end of the adjacent magnet and so on if multiple magnets are connected together. This connects in a similar way. A module's East end is connected to the West end of the previous module and so on. That should make things clear.
+
+So, a detector would connect the East count signals to the West counter inputs, because it needs to inform the counter to its East that a transition has happened......that counter expects any such transition from its West direction.
+
+That same detector would also connect the West count signals to the East counter inputs, because it needs to inform the counter to its West that a transition has happened....that counter expects any such transition from its East direction.
+
+Now when a turnout is involved in a block (only one turnout per block), The system calls that the North direction(something other than East or West), and that connects to either the East or West controls of the counter depending on how the detector is connected to its other block. A detector MUST be connected to a counter at BOTH ends.....anything else just doesn't make sense......think about it. Just remember, the counter will respond to the East, West and North count lines as required. If there's no turnout involved, then there will be no North lines connected to the counter.
+
+Analysis of using 1 Arduino Pro Micro as both a detector and a counter module.....
+
+As far as the count events normally sent from a detector to a counter, if both are physically in the same Arduino, the control signals would be LOGICAL, and not require actual pins. But, the same number of pins would be required to send the count events to the next external counter module. The detector pins would have to be added for the tssp4038 detectors, plus the 38KHZ carrier frequency generation.
+
+So, 3 extra pins would be needed.....without adding any HW(like a MUX), the simplest way would be to use the analog lins as digital input pins. Supposedly, that's easy to do, but I've got  to try it first.
+
+The logic of the code would not change, and the scan loop for the counter events would just be appended to the scan loop for the state machines. That part should be easy, but we will see.
+
+My choice for functions to be used for the analog pins would be the CDN & CUP signals from North and West. The East signals would be logical, not real pins, so they wouldn't be available. The only other input available is TOS, and will be used.
+
+Turns out that using the analog pins as digital is quite simple, and they can be used for input or output just like the other digital pins.
+
+To make the connections as simple as possible for the shield PCB, the pins moved to the analog pins will be the North CUP, CDN, ACK, plus the ESIG, WSIG and NSIG. That will free up the pins needed by the internal timer for 38KHZ generation.....
+
+
+Enhancement to operations of the basic system.....
+
+The only majormissue with the design is that the system can't detect anything until it crosses a block boundary.......so, at initial power-up, all blocks are considered unoccupied. There may be a solution available.
+
+Initially, I decided to use the EEPROM memory to store the state (the number of things currently in the block) periodically (once a minute) and use that state at power-up to restore the detection status. I developed a rotation storage system to write the data, to maximize the reliability and minimize writing to the same location(s) continually. That would prevent having the memory cells 'wear out' and fail.
+
+I dropped the idea because the procedure to clear the block status/count to correct any errors would be a reset of the Arduino......the status would continually be restored tot he last state, and not cleared in that scenario, which would not be viable.
+
+The solution is to use an available pin to have the Arduino JUST clear the occupancy counter, and NOT reset, which would instead just restore the stored previous state. Sounds like it should work, but now I need to implement it.
+
+The work on combining the detector and counter into one Arduino will have to wait.
+
